@@ -4,7 +4,7 @@ import sqlite3
 import time
 import threading
 from datetime import datetime
-from flask import Flask, render_template_string, request, redirect
+from flask import Flask, render_template_string, request, redirect, jsonify
 
 app = Flask(__name__)
 
@@ -47,18 +47,17 @@ class RSSMonitor:
             )
         ''')
         
-        # Add default feeds
         default_feeds = [
             ('BBC News', 'http://feeds.bbci.co.uk/news/rss.xml'),
             ('CNN', 'http://rss.cnn.com/rss/edition.rss'),
-            ('Reuters', 'http://feeds.reuters.com/reuters/topNews')
+            ('Reuters', 'http://feeds.reuters.com/reuters/topNews'),
+            ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/')
         ]
         
         for name, url in default_feeds:
             cursor.execute('INSERT OR IGNORE INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
         
-        # Add default keywords
-        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software']
+        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software', 'machine learning']
         
         for keyword in default_keywords:
             cursor.execute('INSERT OR IGNORE INTO keywords (keyword) VALUES (?)', (keyword,))
@@ -172,7 +171,7 @@ class RSSMonitor:
                 feed = feedparser.parse(feed_url)
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Scanning: {feed_name}")
                 
-                for entry in feed.entries[:8]:
+                for entry in feed.entries[:10]:
                     article = {
                         'title': entry.title,
                         'link': entry.link,
@@ -197,9 +196,9 @@ class RSSMonitor:
         while self.monitoring:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting RSS scan cycle...")
             self.scan_feeds()
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Cycle complete. Waiting 20 minutes...")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Cycle complete. Waiting 25 minutes...")
             
-            for _ in range(1200):  # 20 minutes
+            for _ in range(1500):  # 25 minutes
                 if not self.monitoring:
                     break
                 time.sleep(1)
@@ -214,10 +213,10 @@ class RSSMonitor:
     def stop_monitoring(self):
         self.monitoring = False
     
-    def get_news(self):
+    def get_news(self, limit=30):
         conn = sqlite3.connect('news.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC LIMIT 25')
+        cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC LIMIT ?', (limit,))
         news = cursor.fetchall()
         conn.close()
         return news
@@ -228,7 +227,7 @@ HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RSS Monitor - Full Management</title>
+    <title>RSS Monitor with API</title>
     <style>
         body { font-family: Arial; margin: 20px; }
         .header { background: #f0f0f0; padding: 15px; margin-bottom: 20px; }
@@ -245,16 +244,25 @@ HTML_TEMPLATE = '''
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         input { padding: 5px; margin: 5px; }
+        .api-info { background: #e7f3ff; padding: 10px; margin: 10px 0; border-radius: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>RSS Monitor - Full Management</h1>
+        <h1>RSS Monitor with API</h1>
         <div class="status">Status: {{ 'Running' if monitoring else 'Stopped' }}</div>
         <a href="/start" class="btn">Start</a>
         <a href="/stop" class="btn">Stop</a>
         <a href="/scan" class="btn">Manual Scan</a>
         <a href="/" class="btn">Refresh</a>
+    </div>
+
+    <div class="api-info">
+        <strong>API Endpoints:</strong>
+        <a href="/api/news" target="_blank">/api/news</a> |
+        <a href="/api/feeds" target="_blank">/api/feeds</a> |
+        <a href="/api/keywords" target="_blank">/api/keywords</a> |
+        <a href="/api/status" target="_blank">/api/status</a>
     </div>
 
     <div class="section">
@@ -324,6 +332,7 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+# Web interface routes
 @app.route('/')
 def index():
     articles = monitor.get_news()
@@ -375,7 +384,66 @@ def toggle_keyword(keyword_id):
     monitor.toggle_keyword(keyword_id)
     return redirect('/')
 
+# API routes
+@app.route('/api/news')
+def api_news():
+    limit = request.args.get('limit', 50, type=int)
+    news = monitor.get_news(limit)
+    
+    result = []
+    for item in news:
+        result.append({
+            'id': item[0],
+            'title': item[1],
+            'description': item[2],
+            'link': item[3],
+            'feed_name': item[4],
+            'keywords': item[5],
+            'found_at': item[6]
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/feeds')
+def api_feeds():
+    feeds = monitor.get_all_feeds()
+    
+    result = []
+    for feed in feeds:
+        result.append({
+            'id': feed[0],
+            'name': feed[1],
+            'url': feed[2],
+            'active': bool(feed[3])
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/keywords')
+def api_keywords():
+    keywords = monitor.get_all_keywords()
+    
+    result = []
+    for keyword in keywords:
+        result.append({
+            'id': keyword[0],
+            'keyword': keyword[1],
+            'active': bool(keyword[2])
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/status')
+def api_status():
+    return jsonify({
+        'monitoring': monitor.monitoring,
+        'active_feeds': len(monitor.get_active_feeds()),
+        'active_keywords': len(monitor.get_active_keywords()),
+        'total_articles': len(monitor.get_news(1000))
+    })
+
 if __name__ == '__main__':
-    print("RSS Monitor with Keyword Management")
+    print("RSS Monitor with API")
     print("Web interface: http://localhost:5000")
+    print("API endpoints: /api/news, /api/feeds, /api/keywords, /api/status")
     app.run(debug=False, port=5000)
