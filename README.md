@@ -1,17 +1,19 @@
 # RSS News Monitor
 
-Simple RSS feed parser that searches for keywords in news articles.
+RSS feed parser with automatic monitoring and web interface for keyword detection in news articles.
 
 ## Features
 
 - Parse RSS feeds from BBC News and CNN
 - Search for technology-related keywords in articles
+- Automatic background monitoring every 10 minutes
+- Web interface with start/stop controls
 - Display matching articles with titles, links, and matched keywords
 
 ## Installation
 
 ```bash
-pip3 install feedparser
+pip3 install -r requirements.txt
 ```
 
 ## Usage
@@ -19,6 +21,11 @@ pip3 install feedparser
 ```bash
 python3 rss_monitor.py
 ```
+
+Open http://127.0.0.1:5000 in your browser to:
+- View found articles
+- Start/stop automatic monitoring
+- Manually trigger RSS scans
 
 The script will scan RSS feeds and display articles containing keywords like:
 - technology
@@ -29,4 +36,3 @@ The script will scan RSS feeds and display articles containing keywords like:
 ## Requirements
 
 - Python 3.6+
-- feedparser
