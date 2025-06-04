@@ -1,6 +1,6 @@
 # RSS News Monitor
 
-Complete RSS feed monitoring service with web interface and REST API for managing feeds, keywords, and tracking news articles.
+Enterprise RSS feed monitoring service with comprehensive logging, web interface, and REST API for managing feeds, keywords, and tracking news articles.
 
 ## Features
 
@@ -9,9 +9,12 @@ Complete RSS feed monitoring service with web interface and REST API for managin
 - Add/remove keywords via web interface
 - Activate/deactivate feeds and keywords without deletion
 - Search articles using custom keyword combinations
-- Automatic background monitoring every 25 minutes
+- Automatic background monitoring every 30 minutes
+- **Comprehensive logging system with file and console output**
+- **Detailed operation tracking and error handling**
 - Web interface with full feed and keyword management
-- **REST API endpoints for programmatic access**
+- REST API endpoints for programmatic access
+- Statistics and monitoring dashboard
 - Display matching articles with source attribution and matched keywords
 
 ## Installation
@@ -31,6 +34,7 @@ python3 rss_monitor.py
 - Manage RSS feeds (add, activate, deactivate)
 - Manage keywords (add, activate, deactivate)
 - Start/stop automatic monitoring
+- View statistics and system status
 - Manually trigger RSS scans
 
 **API Endpoints:** 
@@ -38,6 +42,15 @@ python3 rss_monitor.py
 - `GET /api/feeds` - Get RSS feeds list with status
 - `GET /api/keywords` - Get keywords list with status  
 - `GET /api/status` - Get monitoring status and statistics
+
+## Logging
+
+All activities are logged to both console and `rss_monitor.log` file:
+- RSS feed scanning operations
+- Found articles with matched keywords
+- Feed and keyword management actions
+- Error handling and debugging information
+- System status and performance metrics
 
 ## API Examples
 
@@ -55,10 +68,15 @@ curl http://127.0.0.1:5000/api/feeds
 ## Default Configuration
 
 **RSS Sources:**
-- BBC News, CNN, Reuters, TechCrunch
+- BBC News, CNN, Reuters, TechCrunch, RBC Tech
 
 **Keywords:**
-- technology, AI, Python, programming, tech, artificial, digital, software, machine learning
+- technology, AI, Python, programming, tech, artificial, digital, software, machine learning, технологии, искусственный
+
+## Files Created
+
+- `news.db` - SQLite database with articles, feeds, and keywords
+- `rss_monitor.log` - Comprehensive logging of all operations
 
 ## Requirements
 
