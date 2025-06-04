@@ -28,6 +28,14 @@ class RSSMonitor:
         ''')
         
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS keywords (
+                id INTEGER PRIMARY KEY,
+                keyword TEXT NOT NULL UNIQUE,
+                active INTEGER DEFAULT 1
+            )
+        ''')
+        
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS found_news (
                 id INTEGER PRIMARY KEY,
                 title TEXT,
@@ -49,6 +57,12 @@ class RSSMonitor:
         for name, url in default_feeds:
             cursor.execute('INSERT OR IGNORE INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
         
+        # Add default keywords
+        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software']
+        
+        for keyword in default_keywords:
+            cursor.execute('INSERT OR IGNORE INTO keywords (keyword) VALUES (?)', (keyword,))
+        
         conn.commit()
         conn.close()
     
@@ -68,6 +82,22 @@ class RSSMonitor:
         conn.close()
         return feeds
     
+    def get_active_keywords(self):
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT keyword FROM keywords WHERE active = 1')
+        keywords = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return keywords
+    
+    def get_all_keywords(self):
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM keywords')
+        keywords = cursor.fetchall()
+        conn.close()
+        return keywords
+    
     def add_feed(self, name, url):
         conn = sqlite3.connect('news.db')
         cursor = conn.cursor()
@@ -80,10 +110,29 @@ class RSSMonitor:
         finally:
             conn.close()
     
+    def add_keyword(self, keyword):
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        try:
+            cursor.execute('INSERT INTO keywords (keyword) VALUES (?)', (keyword,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
+    
     def toggle_feed(self, feed_id):
         conn = sqlite3.connect('news.db')
         cursor = conn.cursor()
         cursor.execute('UPDATE rss_feeds SET active = 1 - active WHERE id = ?', (feed_id,))
+        conn.commit()
+        conn.close()
+    
+    def toggle_keyword(self, keyword_id):
+        conn = sqlite3.connect('news.db')
+        cursor = conn.cursor()
+        cursor.execute('UPDATE keywords SET active = 1 - active WHERE id = ?', (keyword_id,))
         conn.commit()
         conn.close()
     
@@ -112,7 +161,11 @@ class RSSMonitor:
     
     def scan_feeds(self):
         feeds = self.get_active_feeds()
-        keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software']
+        keywords = self.get_active_keywords()
+        
+        if not keywords:
+            print("No active keywords found")
+            return
         
         for feed_name, feed_url in feeds:
             try:
@@ -144,9 +197,9 @@ class RSSMonitor:
         while self.monitoring:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting RSS scan cycle...")
             self.scan_feeds()
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Cycle complete. Waiting 15 minutes...")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Cycle complete. Waiting 20 minutes...")
             
-            for _ in range(900):  # 15 minutes
+            for _ in range(1200):  # 20 minutes
                 if not self.monitoring:
                     break
                 time.sleep(1)
@@ -175,7 +228,7 @@ HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RSS Monitor - Feed Management</title>
+    <title>RSS Monitor - Full Management</title>
     <style>
         body { font-family: Arial; margin: 20px; }
         .header { background: #f0f0f0; padding: 15px; margin-bottom: 20px; }
@@ -196,7 +249,7 @@ HTML_TEMPLATE = '''
 </head>
 <body>
     <div class="header">
-        <h1>RSS Monitor - Feed Management</h1>
+        <h1>RSS Monitor - Full Management</h1>
         <div class="status">Status: {{ 'Running' if monitoring else 'Stopped' }}</div>
         <a href="/start" class="btn">Start</a>
         <a href="/stop" class="btn">Stop</a>
@@ -205,7 +258,7 @@ HTML_TEMPLATE = '''
     </div>
 
     <div class="section">
-        <h2>RSS Feeds Management</h2>
+        <h2>RSS Feeds ({{ feeds|length }})</h2>
         <form method="POST" action="/add_feed">
             <input type="text" name="name" placeholder="Feed Name" required>
             <input type="url" name="url" placeholder="RSS URL" required>
@@ -217,11 +270,34 @@ HTML_TEMPLATE = '''
             {% for feed in feeds %}
             <tr>
                 <td>{{ feed[1] }}</td>
-                <td>{{ feed[2] }}</td>
+                <td>{{ feed[2][:50] }}...</td>
                 <td>{{ 'Active' if feed[3] else 'Inactive' }}</td>
                 <td>
                     <a href="/toggle_feed/{{ feed[0] }}" class="btn">
                         {{ 'Deactivate' if feed[3] else 'Activate' }}
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Keywords ({{ keywords|length }})</h2>
+        <form method="POST" action="/add_keyword">
+            <input type="text" name="keyword" placeholder="Keyword" required>
+            <button type="submit" class="btn">Add Keyword</button>
+        </form>
+        
+        <table>
+            <tr><th>Keyword</th><th>Status</th><th>Actions</th></tr>
+            {% for keyword in keywords %}
+            <tr>
+                <td>{{ keyword[1] }}</td>
+                <td>{{ 'Active' if keyword[2] else 'Inactive' }}</td>
+                <td>
+                    <a href="/toggle_keyword/{{ keyword[0] }}" class="btn">
+                        {{ 'Deactivate' if keyword[2] else 'Activate' }}
                     </a>
                 </td>
             </tr>
@@ -252,7 +328,12 @@ HTML_TEMPLATE = '''
 def index():
     articles = monitor.get_news()
     feeds = monitor.get_all_feeds()
-    return render_template_string(HTML_TEMPLATE, articles=articles, feeds=feeds, monitoring=monitor.monitoring)
+    keywords = monitor.get_all_keywords()
+    return render_template_string(HTML_TEMPLATE, 
+                                articles=articles, 
+                                feeds=feeds, 
+                                keywords=keywords,
+                                monitoring=monitor.monitoring)
 
 @app.route('/start')
 def start():
@@ -277,12 +358,24 @@ def add_feed():
         monitor.add_feed(name, url)
     return redirect('/')
 
+@app.route('/add_keyword', methods=['POST'])
+def add_keyword():
+    keyword = request.form.get('keyword')
+    if keyword:
+        monitor.add_keyword(keyword)
+    return redirect('/')
+
 @app.route('/toggle_feed/<int:feed_id>')
 def toggle_feed(feed_id):
     monitor.toggle_feed(feed_id)
     return redirect('/')
 
+@app.route('/toggle_keyword/<int:keyword_id>')
+def toggle_keyword(keyword_id):
+    monitor.toggle_keyword(keyword_id)
+    return redirect('/')
+
 if __name__ == '__main__':
-    print("RSS Monitor with Feed Management")
+    print("RSS Monitor with Keyword Management")
     print("Web interface: http://localhost:5000")
     app.run(debug=False, port=5000)
