@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import feedparser
 import sqlite3
-import time
+import feedparser
 import threading
+import time
 import logging
 from datetime import datetime
-from flask import Flask, render_template_string, request, redirect, jsonify
+from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,238 +17,174 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
 class RSSMonitor:
-    def __init__(self):
+    def __init__(self, db_path='rss_monitor.db'):
+        self.db_path = db_path
+        self.init_db()
         self.monitoring = False
         self.monitor_thread = None
-        self.init_database()
-        logger.info("RSS Monitor initialized")
-    
-    def init_database(self):
-        conn = sqlite3.connect('news.db')
+        
+    def init_db(self):
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS rss_feeds (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 url TEXT NOT NULL UNIQUE,
-                active INTEGER DEFAULT 1
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS keywords (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 keyword TEXT NOT NULL UNIQUE,
-                active INTEGER DEFAULT 1
+                active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS found_news (
-                id INTEGER PRIMARY KEY,
-                title TEXT,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
                 description TEXT,
-                link TEXT UNIQUE,
+                link TEXT NOT NULL UNIQUE,
                 feed_name TEXT,
-                keywords TEXT,
+                keywords_matched TEXT,
+                published_date TIMESTAMP,
                 found_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        default_feeds = [
-            ('BBC News', 'http://feeds.bbci.co.uk/news/rss.xml'),
-            ('CNN', 'http://rss.cnn.com/rss/edition.rss'),
-            ('Reuters', 'http://feeds.reuters.com/reuters/topNews'),
-            ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/'),
-            ('RBC Tech', 'https://rssexport.rbc.ru/rbcnews/news/20/full.rss')
-        ]
-        
-        for name, url in default_feeds:
-            cursor.execute('INSERT OR IGNORE INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
-        
-        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software', 'machine learning', 'технологии', 'искусственный']
-        
-        for keyword in default_keywords:
-            cursor.execute('INSERT OR IGNORE INTO keywords (keyword) VALUES (?)', (keyword,))
+        cursor.execute('SELECT COUNT(*) FROM rss_feeds')
+        if cursor.fetchone()[0] == 0:
+            test_feeds = [
+                ('BBC News', 'http://feeds.bbci.co.uk/news/rss.xml'),
+                ('Reuters', 'http://feeds.reuters.com/reuters/topNews'),
+                ('CNN', 'http://rss.cnn.com/rss/edition.rss'),
+                ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/')
+            ]
+            cursor.executemany('INSERT INTO rss_feeds (name, url) VALUES (?, ?)', test_feeds)
+            
+        cursor.execute('SELECT COUNT(*) FROM keywords')
+        if cursor.fetchone()[0] == 0:
+            test_keywords = ['technology', 'artificial intelligence', 'Python', 'programming', 'tech', 'AI', 'software', 'digital']
+            cursor.executemany('INSERT INTO keywords (keyword) VALUES (?)', [(k,) for k in test_keywords])
         
         conn.commit()
         conn.close()
         logger.info("Database initialized")
-    
+        
     def get_active_feeds(self):
-        conn = sqlite3.connect('news.db')
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('SELECT name, url FROM rss_feeds WHERE active = 1')
         feeds = cursor.fetchall()
         conn.close()
         return feeds
-    
-    def get_all_feeds(self):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM rss_feeds')
-        feeds = cursor.fetchall()
-        conn.close()
-        return feeds
-    
+        
     def get_active_keywords(self):
-        conn = sqlite3.connect('news.db')
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('SELECT keyword FROM keywords WHERE active = 1')
-        keywords = [row[0] for row in cursor.fetchall()]
+        keywords = [row[0].lower() for row in cursor.fetchall()]
         conn.close()
         return keywords
-    
-    def get_all_keywords(self):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM keywords')
-        keywords = cursor.fetchall()
-        conn.close()
-        return keywords
-    
-    def add_feed(self, name, url):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
+        
+    def check_keywords_in_text(self, text, keywords):
+        if not text:
+            return []
+        
+        text = text.lower()
+        found_keywords = []
+        for keyword in keywords:
+            if keyword.lower() in text:
+                found_keywords.append(keyword)
+        return found_keywords
+        
+    def parse_feed(self, feed_name, feed_url, keywords):
         try:
-            cursor.execute('INSERT INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
-            conn.commit()
-            logger.info(f"Added RSS feed: {name}")
-            return True
-        except sqlite3.IntegrityError:
-            logger.warning(f"RSS feed already exists: {url}")
-            return False
-        finally:
-            conn.close()
-    
-    def add_keyword(self, keyword):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        try:
-            cursor.execute('INSERT INTO keywords (keyword) VALUES (?)', (keyword,))
-            conn.commit()
-            logger.info(f"Added keyword: {keyword}")
-            return True
-        except sqlite3.IntegrityError:
-            logger.warning(f"Keyword already exists: {keyword}")
-            return False
-        finally:
-            conn.close()
-    
-    def toggle_feed(self, feed_id):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT name, active FROM rss_feeds WHERE id = ?', (feed_id,))
-        result = cursor.fetchone()
-        if result:
-            name, current_status = result
-            cursor.execute('UPDATE rss_feeds SET active = 1 - active WHERE id = ?', (feed_id,))
-            conn.commit()
-            new_status = "activated" if not current_status else "deactivated"
-            logger.info(f"Feed {name} {new_status}")
-        conn.close()
-    
-    def toggle_keyword(self, keyword_id):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT keyword, active FROM keywords WHERE id = ?', (keyword_id,))
-        result = cursor.fetchone()
-        if result:
-            keyword, current_status = result
-            cursor.execute('UPDATE keywords SET active = 1 - active WHERE id = ?', (keyword_id,))
-            conn.commit()
-            new_status = "activated" if not current_status else "deactivated"
-            logger.info(f"Keyword '{keyword}' {new_status}")
-        conn.close()
-    
-    def save_article(self, article, keywords, feed_name):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        
-        try:
-            cursor.execute('''
-                INSERT INTO found_news (title, description, link, feed_name, keywords)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (
-                article['title'],
-                article['description'][:300],
-                article['link'],
-                feed_name,
-                ', '.join(keywords)
-            ))
-            conn.commit()
-            logger.info(f"Found article: {article['title'][:50]}... (keywords: {', '.join(keywords)})")
-            return True
-        except sqlite3.IntegrityError:
-            return False
-        finally:
-            conn.close()
-    
-    def scan_feeds(self):
-        feeds = self.get_active_feeds()
-        keywords = self.get_active_keywords()
-        
-        if not feeds:
-            logger.warning("No active RSS feeds")
-            return
-        
-        if not keywords:
-            logger.warning("No active keywords")
-            return
-        
-        logger.info(f"Starting scan of {len(feeds)} feeds with {len(keywords)} keywords")
-        
-        total_found = 0
-        for feed_name, feed_url in feeds:
-            try:
-                logger.info(f"Scanning feed: {feed_name}")
-                feed = feedparser.parse(feed_url)
+            logger.info(f"Parsing feed: {feed_name}")
+            feed = feedparser.parse(feed_url)
+            
+            if feed.bozo:
+                logger.warning(f"Feed parsing issues for {feed_name}: {feed.bozo_exception}")
+            
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            new_articles = 0
+            for entry in feed.entries[:20]:
+                title = getattr(entry, 'title', '')
+                description = getattr(entry, 'description', '') or getattr(entry, 'summary', '')
+                link = getattr(entry, 'link', '')
                 
-                if feed.bozo:
-                    logger.warning(f"Feed parsing issues for {feed_name}: {feed.bozo_exception}")
+                if not title or not link:
+                    continue
                 
-                feed_found = 0
-                for entry in feed.entries[:10]:
-                    article = {
-                        'title': entry.title,
-                        'link': entry.link,
-                        'description': getattr(entry, 'description', '')
-                    }
+                cursor.execute('SELECT id FROM found_news WHERE link = ?', (link,))
+                if cursor.fetchone():
+                    continue
                     
-                    text_to_check = f"{article['title']} {article['description']}"
-                    matched_keywords = []
+                text_to_search = f"{title} {description}"
+                matched_keywords = self.check_keywords_in_text(text_to_search, keywords)
+                
+                if matched_keywords:
+                    published_date = None
+                    if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                        try:
+                            published_date = datetime(*entry.published_parsed[:6])
+                        except:
+                            pass
                     
-                    for keyword in keywords:
-                        if keyword.lower() in text_to_check.lower():
-                            matched_keywords.append(keyword)
-                    
-                    if matched_keywords:
-                        if self.save_article(article, matched_keywords, feed_name):
-                            feed_found += 1
-                            total_found += 1
-                
-                if feed_found > 0:
-                    logger.info(f"Found {feed_found} new articles from {feed_name}")
-                
-                time.sleep(2)
-                
-            except Exception as e:
-                logger.error(f"Error scanning {feed_name}: {str(e)}")
-        
-        logger.info(f"Scan complete. Total new articles found: {total_found}")
-    
-    def monitor_loop(self):
+                    cursor.execute('''
+                        INSERT INTO found_news 
+                        (title, description, link, feed_name, keywords_matched, published_date)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (
+                        title, 
+                        description[:500], 
+                        link, 
+                        feed_name, 
+                        ', '.join(matched_keywords),
+                        published_date
+                    ))
+                    new_articles += 1
+                    logger.info(f"Found article: {title[:50]}... (keywords: {', '.join(matched_keywords)})")
+            
+            conn.commit()
+            conn.close()
+            
+            if new_articles > 0:
+                logger.info(f"Added {new_articles} new articles from {feed_name}")
+            
+        except Exception as e:
+            logger.error(f"Error parsing feed {feed_name}: {str(e)}")
+            
+    def monitor_feeds(self):
         logger.info("RSS monitoring started")
         
         while self.monitoring:
             try:
-                logger.info("Starting RSS scan cycle")
-                self.scan_feeds()
-                logger.info("Scan cycle complete. Waiting 30 minutes...")
+                feeds = self.get_active_feeds()
+                keywords = self.get_active_keywords()
+                
+                if not feeds:
+                    logger.warning("No active RSS feeds")
+                elif not keywords:
+                    logger.warning("No active keywords")
+                else:
+                    logger.info(f"Monitoring {len(feeds)} feeds with {len(keywords)} keywords")
+                    
+                    for feed_name, feed_url in feeds:
+                        if not self.monitoring:
+                            break
+                        self.parse_feed(feed_name, feed_url, keywords)
+                        time.sleep(2)
                 
                 for _ in range(1800):  # 30 minutes
                     if not self.monitoring:
@@ -258,98 +194,100 @@ class RSSMonitor:
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {str(e)}")
                 time.sleep(60)
-        
+                
         logger.info("RSS monitoring stopped")
-    
+        
     def start_monitoring(self):
         if not self.monitoring:
             self.monitoring = True
-            self.monitor_thread = threading.Thread(target=self.monitor_loop)
+            self.monitor_thread = threading.Thread(target=self.monitor_feeds)
             self.monitor_thread.daemon = True
             self.monitor_thread.start()
             logger.info("Monitoring started")
-    
+            
     def stop_monitoring(self):
-        if self.monitoring:
-            self.monitoring = False
-            logger.info("Monitoring stop requested")
-    
-    def get_news(self, limit=30):
-        conn = sqlite3.connect('news.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC LIMIT ?', (limit,))
-        news = cursor.fetchall()
-        conn.close()
-        return news
+        self.monitoring = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=5)
+        logger.info("Monitoring stopped")
 
 monitor = RSSMonitor()
+app = Flask(__name__)
 
-HTML_TEMPLATE = '''
+MAIN_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RSS Monitor with Logging</title>
+    <title>RSS News Monitor</title>
+    <meta charset="utf-8">
     <style>
-        body { font-family: Arial; margin: 20px; }
-        .header { background: #f0f0f0; padding: 15px; margin-bottom: 20px; }
-        .status { font-weight: bold; color: {{ 'green' if monitoring else 'red' }}; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 20px; margin-bottom: 20px; }
         .section { margin-bottom: 30px; }
-        .article { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
-        .title { font-weight: bold; color: #0066cc; }
-        .meta { color: #666; font-size: 0.9em; }
-        .keywords { background: #ffeb3b; padding: 2px 4px; }
-        .btn { padding: 5px 10px; margin: 2px; text-decoration: none; 
-               background: #007bff; color: white; border-radius: 3px; display: inline-block; }
-        .btn-danger { background: #dc3545; }
-        .btn-success { background: #28a745; }
+        .news-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+        .news-title { font-weight: bold; color: #0066cc; }
+        .news-meta { color: #666; font-size: 0.9em; margin: 5px 0; }
+        .keywords { background: #fff3cd; padding: 2px 6px; border-radius: 3px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
-        input { padding: 5px; margin: 5px; }
-        .stats { background: #e9ecef; padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .log-info { background: #d1ecf1; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .btn { padding: 5px 10px; margin: 2px; text-decoration: none; background: #007bff; color: white; border-radius: 3px; }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-inactive { background: #f8d7da; color: #721c24; }
+        form { margin: 10px 0; }
+        input, textarea { padding: 5px; margin: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>RSS Monitor with Logging</h1>
-        <div class="status">Monitoring: {{ 'Active' if monitoring else 'Inactive' }}</div>
+        <h1>RSS News Monitor</h1>
+        <div class="status {{ 'status-active' if monitoring else 'status-inactive' }}">
+            Monitoring Status: {{ 'Active' if monitoring else 'Inactive' }}
+        </div>
         <a href="/start" class="btn btn-success">Start</a>
         <a href="/stop" class="btn btn-danger">Stop</a>
-        <a href="/scan" class="btn">Manual Scan</a>
         <a href="/" class="btn">Refresh</a>
     </div>
 
-    <div class="stats">
-        <strong>Statistics:</strong>
-        Active Feeds: {{ active_feeds }} | 
-        Active Keywords: {{ active_keywords }} | 
-        Total Articles: {{ articles|length }}
-    </div>
-
-    <div class="log-info">
-        <strong>Logging:</strong> All activities are logged to 'rss_monitor.log' file and console
+    <div class="section">
+        <h2>Found Articles ({{ news|length }})</h2>
+        {% for item in news %}
+        <div class="news-item">
+            <div class="news-title">{{ item[1] }}</div>
+            <div class="news-meta">
+                Source: {{ item[4] }} | 
+                Keywords: <span class="keywords">{{ item[5] }}</span> | 
+                Found: {{ item[7] }}
+            </div>
+            <div>{{ item[2] }}</div>
+            <div><a href="{{ item[3] }}" target="_blank">Read more</a></div>
+        </div>
+        {% endfor %}
     </div>
 
     <div class="section">
-        <h2>RSS Feeds ({{ feeds|length }})</h2>
+        <h2>RSS Sources</h2>
         <form method="POST" action="/add_feed">
             <input type="text" name="name" placeholder="Feed Name" required>
             <input type="url" name="url" placeholder="RSS URL" required>
             <button type="submit" class="btn">Add Feed</button>
         </form>
-        
         <table>
             <tr><th>Name</th><th>URL</th><th>Status</th><th>Actions</th></tr>
             {% for feed in feeds %}
             <tr>
                 <td>{{ feed[1] }}</td>
-                <td>{{ feed[2][:50] }}...</td>
+                <td>{{ feed[2] }}</td>
                 <td>{{ 'Active' if feed[3] else 'Inactive' }}</td>
                 <td>
                     <a href="/toggle_feed/{{ feed[0] }}" class="btn">
                         {{ 'Deactivate' if feed[3] else 'Activate' }}
                     </a>
+                    <a href="/delete_feed/{{ feed[0] }}" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
                 </td>
             </tr>
             {% endfor %}
@@ -357,12 +295,11 @@ HTML_TEMPLATE = '''
     </div>
 
     <div class="section">
-        <h2>Keywords ({{ keywords|length }})</h2>
+        <h2>Keywords</h2>
         <form method="POST" action="/add_keyword">
             <input type="text" name="keyword" placeholder="Keyword" required>
             <button type="submit" class="btn">Add Keyword</button>
         </form>
-        
         <table>
             <tr><th>Keyword</th><th>Status</th><th>Actions</th></tr>
             {% for keyword in keywords %}
@@ -373,26 +310,12 @@ HTML_TEMPLATE = '''
                     <a href="/toggle_keyword/{{ keyword[0] }}" class="btn">
                         {{ 'Deactivate' if keyword[2] else 'Activate' }}
                     </a>
+                    <a href="/delete_keyword/{{ keyword[0] }}" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
                 </td>
             </tr>
             {% endfor %}
         </table>
-    </div>
-    
-    <div class="section">
-        <h2>Found Articles ({{ articles|length }})</h2>
-        {% for article in articles %}
-        <div class="article">
-            <div class="title">{{ article[1] }}</div>
-            <div class="meta">
-                Source: {{ article[4] }} | 
-                Keywords: <span class="keywords">{{ article[5] }}</span> | 
-                Found: {{ article[6] }}
-            </div>
-            <div>{{ article[2] }}</div>
-            <div><a href="{{ article[3] }}" target="_blank">Read more</a></div>
-        </div>
-        {% endfor %}
     </div>
 </body>
 </html>
@@ -400,74 +323,129 @@ HTML_TEMPLATE = '''
 
 @app.route('/')
 def index():
-    articles = monitor.get_news()
-    feeds = monitor.get_all_feeds()
-    keywords = monitor.get_all_keywords()
-    active_feeds = len(monitor.get_active_feeds())
-    active_keywords = len(monitor.get_active_keywords())
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
     
-    return render_template_string(HTML_TEMPLATE, 
-                                articles=articles, 
+    cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC LIMIT 50')
+    news = cursor.fetchall()
+    
+    cursor.execute('SELECT * FROM rss_feeds ORDER BY name')
+    feeds = cursor.fetchall()
+    
+    cursor.execute('SELECT * FROM keywords ORDER BY keyword')
+    keywords = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template_string(MAIN_TEMPLATE, 
+                                news=news, 
                                 feeds=feeds, 
                                 keywords=keywords,
-                                monitoring=monitor.monitoring,
-                                active_feeds=active_feeds,
-                                active_keywords=active_keywords)
+                                monitoring=monitor.monitoring)
 
 @app.route('/start')
-def start():
+def start_monitoring():
     monitor.start_monitoring()
-    return redirect('/')
+    return redirect(url_for('index'))
 
 @app.route('/stop')
-def stop():
+def stop_monitoring():
     monitor.stop_monitoring()
-    return redirect('/')
-
-@app.route('/scan')
-def scan():
-    monitor.scan_feeds()
-    return redirect('/')
+    return redirect(url_for('index'))
 
 @app.route('/add_feed', methods=['POST'])
 def add_feed():
     name = request.form.get('name')
     url = request.form.get('url')
+    
     if name and url:
-        monitor.add_feed(name, url)
-    return redirect('/')
+        conn = sqlite3.connect(monitor.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('INSERT INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
+            conn.commit()
+            logger.info(f"Added RSS feed: {name}")
+        except sqlite3.IntegrityError:
+            logger.warning(f"RSS feed already exists: {url}")
+        conn.close()
+    
+    return redirect(url_for('index'))
+
+@app.route('/toggle_feed/<int:feed_id>')
+def toggle_feed(feed_id):
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE rss_feeds SET active = 1 - active WHERE id = ?', (feed_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/delete_feed/<int:feed_id>')
+def delete_feed(feed_id):
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM rss_feeds WHERE id = ?', (feed_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index'))
 
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
     keyword = request.form.get('keyword')
+    
     if keyword:
-        monitor.add_keyword(keyword)
-    return redirect('/')
-
-@app.route('/toggle_feed/<int:feed_id>')
-def toggle_feed(feed_id):
-    monitor.toggle_feed(feed_id)
-    return redirect('/')
+        conn = sqlite3.connect(monitor.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute('INSERT INTO keywords (keyword) VALUES (?)', (keyword,))
+            conn.commit()
+            logger.info(f"Added keyword: {keyword}")
+        except sqlite3.IntegrityError:
+            logger.warning(f"Keyword already exists: {keyword}")
+        conn.close()
+    
+    return redirect(url_for('index'))
 
 @app.route('/toggle_keyword/<int:keyword_id>')
 def toggle_keyword(keyword_id):
-    monitor.toggle_keyword(keyword_id)
-    return redirect('/')
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE keywords SET active = 1 - active WHERE id = ?', (keyword_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index'))
+
+@app.route('/delete_keyword/<int:keyword_id>')
+def delete_keyword(keyword_id):
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM keywords WHERE id = ?', (keyword_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('index'))
 
 @app.route('/api/news')
 def api_news():
-    limit = request.args.get('limit', 50, type=int)
-    news = monitor.get_news(limit)
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT title, description, link, feed_name, keywords_matched, published_date, found_at 
+        FROM found_news 
+        ORDER BY found_at DESC 
+        LIMIT 100
+    ''')
+    news = cursor.fetchall()
+    conn.close()
     
     result = []
     for item in news:
         result.append({
-            'id': item[0],
-            'title': item[1],
-            'description': item[2],
-            'link': item[3],
-            'feed_name': item[4],
-            'keywords': item[5],
+            'title': item[0],
+            'description': item[1],
+            'link': item[2],
+            'feed_name': item[3],
+            'keywords_matched': item[4],
+            'published_date': item[5],
             'found_at': item[6]
         })
     
@@ -475,7 +453,11 @@ def api_news():
 
 @app.route('/api/feeds')
 def api_feeds():
-    feeds = monitor.get_all_feeds()
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, name, url, active FROM rss_feeds')
+    feeds = cursor.fetchall()
+    conn.close()
     
     result = []
     for feed in feeds:
@@ -490,7 +472,11 @@ def api_feeds():
 
 @app.route('/api/keywords')
 def api_keywords():
-    keywords = monitor.get_all_keywords()
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, keyword, active FROM keywords')
+    keywords = cursor.fetchall()
+    conn.close()
     
     result = []
     for keyword in keywords:
@@ -504,21 +490,41 @@ def api_keywords():
 
 @app.route('/api/status')
 def api_status():
+    conn = sqlite3.connect(monitor.db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) FROM rss_feeds WHERE active = 1')
+    active_feeds = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM keywords WHERE active = 1')
+    active_keywords = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM found_news')
+    total_articles = cursor.fetchone()[0]
+    
+    conn.close()
+    
     return jsonify({
         'monitoring': monitor.monitoring,
-        'active_feeds': len(monitor.get_active_feeds()),
-        'active_keywords': len(monitor.get_active_keywords()),
-        'total_articles': len(monitor.get_news(1000))
+        'active_feeds': active_feeds,
+        'active_keywords': active_keywords,
+        'total_articles': total_articles
     })
 
 if __name__ == '__main__':
-    print("=" * 50)
-    print("RSS Monitor with Logging")
-    print("=" * 50)
+    print("RSS News Monitor Service")
     print("Web interface: http://localhost:5000")
-    print("Logs: rss_monitor.log")
-    print("API endpoints: /api/news, /api/feeds, /api/keywords, /api/status")
-    print("=" * 50)
+    print("API endpoints:")
+    print("  GET /api/news - list of found news")
+    print("  GET /api/feeds - list of RSS feeds")
+    print("  GET /api/keywords - list of keywords")
+    print("  GET /api/status - monitoring status")
     
     monitor.start_monitoring()
-    app.run(debug=False, port=5000)
+    
+    try:
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    except KeyboardInterrupt:
+        print("\nStopping service...")
+        monitor.stop_monitoring()
+        print("Service stopped")
