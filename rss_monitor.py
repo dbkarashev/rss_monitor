@@ -3,8 +3,19 @@ import feedparser
 import sqlite3
 import time
 import threading
+import logging
 from datetime import datetime
 from flask import Flask, render_template_string, request, redirect, jsonify
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('rss_monitor.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -13,6 +24,7 @@ class RSSMonitor:
         self.monitoring = False
         self.monitor_thread = None
         self.init_database()
+        logger.info("RSS Monitor initialized")
     
     def init_database(self):
         conn = sqlite3.connect('news.db')
@@ -51,19 +63,21 @@ class RSSMonitor:
             ('BBC News', 'http://feeds.bbci.co.uk/news/rss.xml'),
             ('CNN', 'http://rss.cnn.com/rss/edition.rss'),
             ('Reuters', 'http://feeds.reuters.com/reuters/topNews'),
-            ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/')
+            ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/'),
+            ('RBC Tech', 'https://rssexport.rbc.ru/rbcnews/news/20/full.rss')
         ]
         
         for name, url in default_feeds:
             cursor.execute('INSERT OR IGNORE INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
         
-        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software', 'machine learning']
+        default_keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'artificial', 'digital', 'software', 'machine learning', 'технологии', 'искусственный']
         
         for keyword in default_keywords:
             cursor.execute('INSERT OR IGNORE INTO keywords (keyword) VALUES (?)', (keyword,))
         
         conn.commit()
         conn.close()
+        logger.info("Database initialized")
     
     def get_active_feeds(self):
         conn = sqlite3.connect('news.db')
@@ -103,8 +117,10 @@ class RSSMonitor:
         try:
             cursor.execute('INSERT INTO rss_feeds (name, url) VALUES (?, ?)', (name, url))
             conn.commit()
+            logger.info(f"Added RSS feed: {name}")
             return True
         except sqlite3.IntegrityError:
+            logger.warning(f"RSS feed already exists: {url}")
             return False
         finally:
             conn.close()
@@ -115,8 +131,10 @@ class RSSMonitor:
         try:
             cursor.execute('INSERT INTO keywords (keyword) VALUES (?)', (keyword,))
             conn.commit()
+            logger.info(f"Added keyword: {keyword}")
             return True
         except sqlite3.IntegrityError:
+            logger.warning(f"Keyword already exists: {keyword}")
             return False
         finally:
             conn.close()
@@ -124,15 +142,27 @@ class RSSMonitor:
     def toggle_feed(self, feed_id):
         conn = sqlite3.connect('news.db')
         cursor = conn.cursor()
-        cursor.execute('UPDATE rss_feeds SET active = 1 - active WHERE id = ?', (feed_id,))
-        conn.commit()
+        cursor.execute('SELECT name, active FROM rss_feeds WHERE id = ?', (feed_id,))
+        result = cursor.fetchone()
+        if result:
+            name, current_status = result
+            cursor.execute('UPDATE rss_feeds SET active = 1 - active WHERE id = ?', (feed_id,))
+            conn.commit()
+            new_status = "activated" if not current_status else "deactivated"
+            logger.info(f"Feed {name} {new_status}")
         conn.close()
     
     def toggle_keyword(self, keyword_id):
         conn = sqlite3.connect('news.db')
         cursor = conn.cursor()
-        cursor.execute('UPDATE keywords SET active = 1 - active WHERE id = ?', (keyword_id,))
-        conn.commit()
+        cursor.execute('SELECT keyword, active FROM keywords WHERE id = ?', (keyword_id,))
+        result = cursor.fetchone()
+        if result:
+            keyword, current_status = result
+            cursor.execute('UPDATE keywords SET active = 1 - active WHERE id = ?', (keyword_id,))
+            conn.commit()
+            new_status = "activated" if not current_status else "deactivated"
+            logger.info(f"Keyword '{keyword}' {new_status}")
         conn.close()
     
     def save_article(self, article, keywords, feed_name):
@@ -151,7 +181,7 @@ class RSSMonitor:
                 ', '.join(keywords)
             ))
             conn.commit()
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Found: {article['title'][:40]}...")
+            logger.info(f"Found article: {article['title'][:50]}... (keywords: {', '.join(keywords)})")
             return True
         except sqlite3.IntegrityError:
             return False
@@ -162,15 +192,26 @@ class RSSMonitor:
         feeds = self.get_active_feeds()
         keywords = self.get_active_keywords()
         
-        if not keywords:
-            print("No active keywords found")
+        if not feeds:
+            logger.warning("No active RSS feeds")
             return
         
+        if not keywords:
+            logger.warning("No active keywords")
+            return
+        
+        logger.info(f"Starting scan of {len(feeds)} feeds with {len(keywords)} keywords")
+        
+        total_found = 0
         for feed_name, feed_url in feeds:
             try:
+                logger.info(f"Scanning feed: {feed_name}")
                 feed = feedparser.parse(feed_url)
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Scanning: {feed_name}")
                 
+                if feed.bozo:
+                    logger.warning(f"Feed parsing issues for {feed_name}: {feed.bozo_exception}")
+                
+                feed_found = 0
                 for entry in feed.entries[:10]:
                     article = {
                         'title': entry.title,
@@ -186,22 +227,39 @@ class RSSMonitor:
                             matched_keywords.append(keyword)
                     
                     if matched_keywords:
-                        self.save_article(article, matched_keywords, feed_name)
+                        if self.save_article(article, matched_keywords, feed_name):
+                            feed_found += 1
+                            total_found += 1
+                
+                if feed_found > 0:
+                    logger.info(f"Found {feed_found} new articles from {feed_name}")
                 
                 time.sleep(2)
+                
             except Exception as e:
-                print(f"Error scanning {feed_name}: {e}")
+                logger.error(f"Error scanning {feed_name}: {str(e)}")
+        
+        logger.info(f"Scan complete. Total new articles found: {total_found}")
     
     def monitor_loop(self):
+        logger.info("RSS monitoring started")
+        
         while self.monitoring:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting RSS scan cycle...")
-            self.scan_feeds()
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] Cycle complete. Waiting 25 minutes...")
-            
-            for _ in range(1500):  # 25 minutes
-                if not self.monitoring:
-                    break
-                time.sleep(1)
+            try:
+                logger.info("Starting RSS scan cycle")
+                self.scan_feeds()
+                logger.info("Scan cycle complete. Waiting 30 minutes...")
+                
+                for _ in range(1800):  # 30 minutes
+                    if not self.monitoring:
+                        break
+                    time.sleep(1)
+                    
+            except Exception as e:
+                logger.error(f"Error in monitoring loop: {str(e)}")
+                time.sleep(60)
+        
+        logger.info("RSS monitoring stopped")
     
     def start_monitoring(self):
         if not self.monitoring:
@@ -209,9 +267,12 @@ class RSSMonitor:
             self.monitor_thread = threading.Thread(target=self.monitor_loop)
             self.monitor_thread.daemon = True
             self.monitor_thread.start()
+            logger.info("Monitoring started")
     
     def stop_monitoring(self):
-        self.monitoring = False
+        if self.monitoring:
+            self.monitoring = False
+            logger.info("Monitoring stop requested")
     
     def get_news(self, limit=30):
         conn = sqlite3.connect('news.db')
@@ -227,7 +288,7 @@ HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RSS Monitor with API</title>
+    <title>RSS Monitor with Logging</title>
     <style>
         body { font-family: Arial; margin: 20px; }
         .header { background: #f0f0f0; padding: 15px; margin-bottom: 20px; }
@@ -240,29 +301,34 @@ HTML_TEMPLATE = '''
         .btn { padding: 5px 10px; margin: 2px; text-decoration: none; 
                background: #007bff; color: white; border-radius: 3px; display: inline-block; }
         .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         input { padding: 5px; margin: 5px; }
-        .api-info { background: #e7f3ff; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .stats { background: #e9ecef; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .log-info { background: #d1ecf1; padding: 10px; margin: 10px 0; border-radius: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>RSS Monitor with API</h1>
-        <div class="status">Status: {{ 'Running' if monitoring else 'Stopped' }}</div>
-        <a href="/start" class="btn">Start</a>
-        <a href="/stop" class="btn">Stop</a>
+        <h1>RSS Monitor with Logging</h1>
+        <div class="status">Monitoring: {{ 'Active' if monitoring else 'Inactive' }}</div>
+        <a href="/start" class="btn btn-success">Start</a>
+        <a href="/stop" class="btn btn-danger">Stop</a>
         <a href="/scan" class="btn">Manual Scan</a>
         <a href="/" class="btn">Refresh</a>
     </div>
 
-    <div class="api-info">
-        <strong>API Endpoints:</strong>
-        <a href="/api/news" target="_blank">/api/news</a> |
-        <a href="/api/feeds" target="_blank">/api/feeds</a> |
-        <a href="/api/keywords" target="_blank">/api/keywords</a> |
-        <a href="/api/status" target="_blank">/api/status</a>
+    <div class="stats">
+        <strong>Statistics:</strong>
+        Active Feeds: {{ active_feeds }} | 
+        Active Keywords: {{ active_keywords }} | 
+        Total Articles: {{ articles|length }}
+    </div>
+
+    <div class="log-info">
+        <strong>Logging:</strong> All activities are logged to 'rss_monitor.log' file and console
     </div>
 
     <div class="section">
@@ -332,17 +398,21 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
-# Web interface routes
 @app.route('/')
 def index():
     articles = monitor.get_news()
     feeds = monitor.get_all_feeds()
     keywords = monitor.get_all_keywords()
+    active_feeds = len(monitor.get_active_feeds())
+    active_keywords = len(monitor.get_active_keywords())
+    
     return render_template_string(HTML_TEMPLATE, 
                                 articles=articles, 
                                 feeds=feeds, 
                                 keywords=keywords,
-                                monitoring=monitor.monitoring)
+                                monitoring=monitor.monitoring,
+                                active_feeds=active_feeds,
+                                active_keywords=active_keywords)
 
 @app.route('/start')
 def start():
@@ -384,7 +454,6 @@ def toggle_keyword(keyword_id):
     monitor.toggle_keyword(keyword_id)
     return redirect('/')
 
-# API routes
 @app.route('/api/news')
 def api_news():
     limit = request.args.get('limit', 50, type=int)
@@ -443,7 +512,13 @@ def api_status():
     })
 
 if __name__ == '__main__':
-    print("RSS Monitor with API")
+    print("=" * 50)
+    print("RSS Monitor with Logging")
+    print("=" * 50)
     print("Web interface: http://localhost:5000")
+    print("Logs: rss_monitor.log")
     print("API endpoints: /api/news, /api/feeds, /api/keywords, /api/status")
+    print("=" * 50)
+    
+    monitor.start_monitoring()
     app.run(debug=False, port=5000)
