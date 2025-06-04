@@ -1,6 +1,6 @@
 # RSS News Monitor
 
-Complete RSS feed monitoring service with web interface for managing feeds, keywords, and tracking news articles.
+Complete RSS feed monitoring service with web interface and REST API for managing feeds, keywords, and tracking news articles.
 
 ## Features
 
@@ -9,8 +9,9 @@ Complete RSS feed monitoring service with web interface for managing feeds, keyw
 - Add/remove keywords via web interface
 - Activate/deactivate feeds and keywords without deletion
 - Search articles using custom keyword combinations
-- Automatic background monitoring every 20 minutes
+- Automatic background monitoring every 25 minutes
 - Web interface with full feed and keyword management
+- **REST API endpoints for programmatic access**
 - Display matching articles with source attribution and matched keywords
 
 ## Installation
@@ -25,30 +26,39 @@ pip3 install -r requirements.txt
 python3 rss_monitor.py
 ```
 
-Open http://127.0.0.1:5000 in your browser to:
+**Web Interface:** http://127.0.0.1:5000
 - View found articles by source and keywords
 - Manage RSS feeds (add, activate, deactivate)
 - Manage keywords (add, activate, deactivate)
 - Start/stop automatic monitoring
 - Manually trigger RSS scans
 
+**API Endpoints:** 
+- `GET /api/news` - Get found articles in JSON format
+- `GET /api/feeds` - Get RSS feeds list with status
+- `GET /api/keywords` - Get keywords list with status  
+- `GET /api/status` - Get monitoring status and statistics
+
+## API Examples
+
+```bash
+# Get latest news articles
+curl http://127.0.0.1:5000/api/news
+
+# Get monitoring status
+curl http://127.0.0.1:5000/api/status
+
+# Get all RSS feeds
+curl http://127.0.0.1:5000/api/feeds
+```
+
 ## Default Configuration
 
 **RSS Sources:**
-- BBC News
-- CNN  
-- Reuters
+- BBC News, CNN, Reuters, TechCrunch
 
 **Keywords:**
-- technology, AI, Python, programming, tech, artificial, digital, software
-
-## Web Interface
-
-The web interface provides complete control over:
-- **RSS Feeds Management**: Add new sources, toggle active feeds
-- **Keywords Management**: Add custom keywords, enable/disable specific terms
-- **Monitoring Control**: Start/stop automatic scanning
-- **Article Viewing**: Browse found articles with keyword highlighting
+- technology, AI, Python, programming, tech, artificial, digital, software, machine learning
 
 ## Requirements
 
