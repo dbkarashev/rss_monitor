@@ -1,1 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual environments
 venv/
+.venv/
+env/
+
+# Project files
+*.log
+*.db
+news.db
+rss_monitor.db
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/settings.json
+.vscode/launch.json
+
+# Environment variables
+.env
