@@ -3,6 +3,9 @@ import feedparser
 import sqlite3
 import time
 from datetime import datetime
+from flask import Flask, render_template_string
+
+app = Flask(__name__)
 
 def init_database():
     conn = sqlite3.connect('news.db')
@@ -37,70 +40,93 @@ def save_article(article, keywords):
             ', '.join(keywords)
         ))
         conn.commit()
-        print(f"Saved: {article['title'][:50]}...")
+        return True
     except sqlite3.IntegrityError:
-        pass
-    
-    conn.close()
+        return False
+    finally:
+        conn.close()
 
 def get_all_news():
     conn = sqlite3.connect('news.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC')
+    cursor.execute('SELECT * FROM found_news ORDER BY found_at DESC LIMIT 20')
     news = cursor.fetchall()
     conn.close()
     return news
 
-def parse_rss_feed(url):
-    feed = feedparser.parse(url)
-    articles = []
-    
-    for entry in feed.entries[:10]:
-        article = {
-            'title': entry.title,
-            'link': entry.link,
-            'description': getattr(entry, 'description', '')
-        }
-        articles.append(article)
-    
-    return articles
-
-def check_keywords(text, keywords):
-    found = []
-    text_lower = text.lower()
-    for keyword in keywords:
-        if keyword.lower() in text_lower:
-            found.append(keyword)
-    return found
-
-def main():
-    init_database()
-    
+def parse_and_save():
     rss_urls = [
         'http://feeds.bbci.co.uk/news/rss.xml',
-        'http://rss.cnn.com/rss/edition.rss',
-        'https://rssexport.rbc.ru/rbcnews/news/20/full.rss'
+        'http://rss.cnn.com/rss/edition.rss'
     ]
     
-    keywords = ['technology', 'AI', 'Python', 'programming', 'tech', 'искусственный']
-    
-    print("RSS Monitor with Database")
-    print("=" * 30)
+    keywords = ['technology', 'AI', 'Python', 'programming', 'tech']
     
     for url in rss_urls:
-        print(f"\nProcessing: {url}")
-        articles = parse_rss_feed(url)
+        feed = feedparser.parse(url)
         
-        for article in articles:
+        for entry in feed.entries[:5]:
+            article = {
+                'title': entry.title,
+                'link': entry.link,
+                'description': getattr(entry, 'description', '')
+            }
+            
             text_to_check = f"{article['title']} {article['description']}"
-            matched_keywords = check_keywords(text_to_check, keywords)
+            matched_keywords = []
+            
+            for keyword in keywords:
+                if keyword.lower() in text_to_check.lower():
+                    matched_keywords.append(keyword)
             
             if matched_keywords:
                 save_article(article, matched_keywords)
-        
-        time.sleep(2)
+
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RSS Monitor</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .article { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
+        .title { font-weight: bold; color: #0066cc; }
+        .meta { color: #666; font-size: 0.9em; }
+        .keywords { background: #ffeb3b; padding: 2px 4px; }
+    </style>
+</head>
+<body>
+    <h1>RSS News Monitor</h1>
+    <p><a href="/scan">Scan RSS Feeds</a> | <a href="/">Refresh</a></p>
     
-    print(f"\nTotal saved articles: {len(get_all_news())}")
+    <h2>Found Articles ({{ articles|length }})</h2>
+    
+    {% for article in articles %}
+    <div class="article">
+        <div class="title">{{ article[1] }}</div>
+        <div class="meta">
+            Keywords: <span class="keywords">{{ article[4] }}</span> | 
+            Found: {{ article[5] }}
+        </div>
+        <div>{{ article[2] }}</div>
+        <div><a href="{{ article[3] }}" target="_blank">Read more</a></div>
+    </div>
+    {% endfor %}
+</body>
+</html>
+'''
+
+@app.route('/')
+def index():
+    articles = get_all_news()
+    return render_template_string(HTML_TEMPLATE, articles=articles)
+
+@app.route('/scan')
+def scan():
+    parse_and_save()
+    return '<h2>Scan completed!</h2><a href="/">Back to articles</a>'
 
 if __name__ == '__main__':
-    main()
+    init_database()
+    print("Web interface: http://localhost:5000")
+    app.run(debug=True, port=5000)
