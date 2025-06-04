@@ -4,6 +4,7 @@ import feedparser
 import threading
 import time
 import logging
+import re
 from datetime import datetime
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 
@@ -95,6 +96,15 @@ class RSSMonitor:
         conn.close()
         return keywords
         
+    def clean_html(self, text):
+        if not text:
+            return ""
+        # Remove HTML tags
+        clean = re.sub('<.*?>', '', text)
+        # Remove extra whitespace
+        clean = ' '.join(clean.split())
+        return clean
+        
     def check_keywords_in_text(self, text, keywords):
         if not text:
             return []
@@ -122,6 +132,9 @@ class RSSMonitor:
                 title = getattr(entry, 'title', '')
                 description = getattr(entry, 'description', '') or getattr(entry, 'summary', '')
                 link = getattr(entry, 'link', '')
+                
+                # Clean HTML from description
+                description = self.clean_html(description)
                 
                 if not title or not link:
                     continue
@@ -513,7 +526,7 @@ def api_status():
 
 if __name__ == '__main__':
     print("RSS News Monitor Service")
-    print("Web interface: http://localhost:5000")
+    print("Web interface: http://localhost:5001")
     print("API endpoints:")
     print("  GET /api/news - list of found news")
     print("  GET /api/feeds - list of RSS feeds")
@@ -523,7 +536,7 @@ if __name__ == '__main__':
     monitor.start_monitoring()
     
     try:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=5001, debug=False)
     except KeyboardInterrupt:
         print("\nStopping service...")
         monitor.stop_monitoring()
