@@ -1,14 +1,16 @@
 # RSS News Monitor
 
-RSS feed parser with automatic monitoring and web interface for keyword detection in news articles.
+RSS feed monitoring service with web interface for managing feeds and tracking keyword-based news articles.
 
 ## Features
 
-- Parse RSS feeds from BBC News and CNN
+- Parse multiple RSS feeds with configurable sources
+- Add/remove RSS feeds via web interface
+- Activate/deactivate feeds without deletion
 - Search for technology-related keywords in articles
-- Automatic background monitoring every 10 minutes
-- Web interface with start/stop controls
-- Display matching articles with titles, links, and matched keywords
+- Automatic background monitoring every 15 minutes
+- Web interface with full feed management
+- Display matching articles with source attribution
 
 ## Installation
 
@@ -23,15 +25,20 @@ python3 rss_monitor.py
 ```
 
 Open http://127.0.0.1:5000 in your browser to:
-- View found articles
+- View found articles by source
+- Manage RSS feeds (add, activate, deactivate)
 - Start/stop automatic monitoring
 - Manually trigger RSS scans
 
-The script will scan RSS feeds and display articles containing keywords like:
-- technology
-- AI
-- Python
-- programming
+## Default Configuration
+
+**RSS Sources:**
+- BBC News
+- CNN  
+- Reuters
+
+**Keywords:**
+- technology, AI, Python, programming, tech, artificial, digital, software
 
 ## Requirements
 
