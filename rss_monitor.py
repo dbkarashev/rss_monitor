@@ -109,10 +109,9 @@ class RSSMonitor:
         if not text:
             return []
         
-        text = text.lower()
         found_keywords = []
         for keyword in keywords:
-            if keyword.lower() in text:
+            if re.search(r'\b' + re.escape(keyword.lower()) + r'\b', text.lower()):
                 found_keywords.append(keyword)
         return found_keywords
         
