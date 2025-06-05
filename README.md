@@ -10,7 +10,7 @@ RSS News Monitor continuously scans multiple RSS feeds, identifies articles matc
 
 ### Core Functionality
 - **Automated RSS Monitoring**: Continuous background scanning every 30 minutes
-- **Keyword Detection**: Configurable keyword matching with case-insensitive search
+- **Keyword Detection**: Word-boundary matching for precise results
 - **Content Cleaning**: Automatic HTML tag removal from article descriptions
 - **Duplicate Prevention**: Link-based deduplication of articles
 
@@ -62,13 +62,14 @@ python3 rss_monitor.py
 The system initializes with curated RSS sources and keywords:
 
 **RSS Sources:**
-- BBC News (General)
-- Reuters (Top News)
-- CNN (Edition RSS)
-- TechCrunch (Technology)
+- TechCrunch (Technology News)
+- The Verge (Tech & Culture)
+- Ars Technica (Science & Technology)
+- Hacker News (Developer Community)
+- VentureBeat (AI & Startup News)
 
 **Keywords:**
-- technology, artificial intelligence, Python, programming, tech, AI, software, digital
+- AI, artificial intelligence, technology, tech, programming, Python, software, digital
 
 ## API Reference
 
@@ -129,6 +130,7 @@ curl http://localhost:5001/api/status
 - RSS 1.0/RDF
 
 ### Keyword Management
+**Word Boundaries:** Uses word-boundary matching to prevent false positives
 **Case Insensitive:** All keyword matching is performed case-insensitively
 **Phrase Support:** Multi-word phrases supported (e.g., "machine learning")
 **Unicode Support:** Full UTF-8 support for international keywords
@@ -136,10 +138,11 @@ curl http://localhost:5001/api/status
 ## File Structure
 
 ```
-rss_monitor/
+rss-monitor/
 ├── rss_monitor.py          # Main application
 ├── requirements.txt        # Python dependencies
 ├── README.md               # Documentation
+├── LICENSE                 # MIT license
 ├── .gitignore              # Git exclusions
 ├── rss_monitor.db          # SQLite database (auto-created)
 └── rss_monitor.log         # Application logs (auto-created)
