@@ -138,7 +138,7 @@ curl http://localhost:5001/api/status
 ## File Structure
 
 ```
-rss-monitor/
+rss_monitor/
 ├── rss_monitor.py          # Main application
 ├── requirements.txt        # Python dependencies
 ├── README.md               # Documentation
@@ -170,7 +170,7 @@ All operations are logged to both console and `rss_monitor.log`:
 ## Requirements
 
 - **Python**: 3.6 or higher
-- **Dependencies**: Flask, feedparser (see requirements.txt)
+- **Dependencies**: (see requirements.txt)
 - **Storage**: ~50MB for database and logs
 - **Network**: Internet access for RSS feed retrieval
 
