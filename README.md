@@ -130,10 +130,10 @@ curl http://localhost:5001/api/status
 - RSS 1.0/RDF
 
 ### Keyword Management
-**Word Boundaries:** Uses word-boundary matching to prevent false positives
-**Case Insensitive:** All keyword matching is performed case-insensitively
-**Phrase Support:** Multi-word phrases supported (e.g., "machine learning")
-**Unicode Support:** Full UTF-8 support for international keywords
+- **Word Boundaries:** Uses word-boundary matching to prevent false positives
+- **Case Insensitive:** All keyword matching is performed case-insensitively
+- **Phrase Support:** Multi-word phrases supported (e.g., "machine learning")
+- **Unicode Support:** Full UTF-8 support for international keywords
 
 ## File Structure
 
