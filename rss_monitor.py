@@ -64,10 +64,11 @@ class RSSMonitor:
         cursor.execute('SELECT COUNT(*) FROM rss_feeds')
         if cursor.fetchone()[0] == 0:
             test_feeds = [
-                ('BBC News', 'http://feeds.bbci.co.uk/news/rss.xml'),
-                ('Reuters', 'http://feeds.reuters.com/reuters/topNews'),
-                ('CNN', 'http://rss.cnn.com/rss/edition.rss'),
-                ('TechCrunch', 'http://feeds.feedburner.com/TechCrunch/')
+                ('TechCrunch', 'https://techcrunch.com/feed/'),
+                ('The Verge', 'https://www.theverge.com/rss/index.xml'),
+                ('Ars Technica', 'https://feeds.arstechnica.com/arstechnica/index'),
+                ('Hacker News', 'https://hnrss.org/frontpage'),
+                ('VentureBeat', 'https://venturebeat.com/feed/')
             ]
             cursor.executemany('INSERT INTO rss_feeds (name, url) VALUES (?, ?)', test_feeds)
             
