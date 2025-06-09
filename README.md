@@ -2,6 +2,8 @@
 
 Production-ready RSS feed monitoring service with automated keyword tracking, web management interface, and REST API endpoints.
 
+[**🔎 Live Demo**](https://dbkarashev.github.io/rss_monitor/) — preview the interface in your browser.
+
 ## Overview
 
 RSS News Monitor continuously scans multiple RSS feeds, identifies articles matching specified keywords, and provides both web and programmatic access to discovered content. Built for reliability with comprehensive logging and error handling.
