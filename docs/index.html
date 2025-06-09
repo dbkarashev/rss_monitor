@@ -1,0 +1,384 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RSS News Monitor</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 20px; margin-bottom: 20px; }
+        .section { margin-bottom: 30px; }
+        .news-item { border: 1px solid #ddd; padding: 15px; margin: 10px 0; }
+        .news-title { font-weight: bold; color: #0066cc; }
+        .news-meta { color: #666; font-size: 0.9em; margin: 5px 0; }
+        .keywords { background: #fff3cd; padding: 2px 6px; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn { padding: 5px 10px; margin: 2px; text-decoration: none; background: #007bff; color: white; border-radius: 3px; }
+        .btn-danger { background: #dc3545; }
+        .btn-success { background: #28a745; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-inactive { background: #f8d7da; color: #721c24; }
+        form { margin: 10px 0; }
+        input, textarea { padding: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RSS News Monitor</h1>
+        <div class="status status-active">
+            Monitoring Status: Active
+        </div>
+        <a href="/start" class="btn btn-success">Start</a>
+        <a href="/stop" class="btn btn-danger">Stop</a>
+        <a href="/" class="btn">Refresh</a>
+    </div>
+
+    <div class="section">
+        <h2>Found Articles (14)</h2>
+        
+        <div class="news-item">
+            <div class="news-title">Like humans, AI is forcing institutions to rethink their purpose</div>
+            <div class="news-meta">
+                Source: VentureBeat | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:06
+            </div>
+            <div>Like people undergoing cognitive migration, institutions must reassess what they were made for in this age of AI.</div>
+            <div><a href="https://venturebeat.com/ai/like-humans-ai-is-forcing-institutions-to-rethink-their-purpose/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Agent-based computing is outgrowing the web as we know it</div>
+            <div class="news-meta">
+                Source: VentureBeat | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:06
+            </div>
+            <div>AI agents are moving from passive assistants to active participants. Today, we ask them to do. Tomorrow, we’ll authorize them to act.</div>
+            <div><a href="https://venturebeat.com/ai/agent-based-computing-is-outgrowing-the-web-as-we-know-it/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Enterprises are getting stuck in AI pilot hell, say Chatterbox Labs execs</div>
+            <div class="news-meta">
+                Source: Hacker News | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:03
+            </div>
+            <div>Article URL: https://www.theregister.com/2025/06/08/chatterbox_labs_ai_adoption/ Comments URL: https://news.ycombinator.com/item?id=44221695 Points: 14 # Comments: 2</div>
+            <div><a href="https://www.theregister.com/2025/06/08/chatterbox_labs_ai_adoption/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Software Is About Promises</div>
+            <div class="news-meta">
+                Source: Hacker News | 
+                Keywords: <span class="keywords">software</span> | 
+                Found: 2025-06-09 07:44:03
+            </div>
+            <div>Article URL: https://www.bramadams.dev/software-is-about-promises/ Comments URL: https://news.ycombinator.com/item?id=44220287 Points: 23 # Comments: 2</div>
+            <div><a href="https://www.bramadams.dev/software-is-about-promises/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Binfmtc – binfmt_misc C scripting interface</div>
+            <div class="news-meta">
+                Source: Hacker News | 
+                Keywords: <span class="keywords">software</span> | 
+                Found: 2025-06-09 07:44:03
+            </div>
+            <div>Article URL: https://www.netfort.gr.jp/~dancer/software/binfmtc.html.en Comments URL: https://news.ycombinator.com/item?id=44216630 Points: 89 # Comments: 23</div>
+            <div><a href="https://www.netfort.gr.jp/~dancer/software/binfmtc.html.en" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Anthropic releases custom AI chatbot for classified spy work</div>
+            <div class="news-meta">
+                Source: Ars Technica | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:00
+            </div>
+            <div>&#34;Claude Gov&#34; is already handling classified information for the US government.</div>
+            <div><a href="https://arstechnica.com/ai/2025/06/anthropic-releases-custom-ai-chatbot-for-classified-spy-work/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Ted Cruz bill: States that regulate AI will be cut out of $42B broadband fund</div>
+            <div class="news-meta">
+                Source: Ars Technica | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:00
+            </div>
+            <div>Cruz attempt to tie broadband funding to AI laws called &#34;undemocratic and cruel.&#34;</div>
+            <div><a href="https://arstechnica.com/tech-policy/2025/06/ted-cruz-bill-states-that-regulate-ai-will-be-cut-out-of-42b-broadband-fund/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">DOGE used flawed AI tool to “munch” Veterans Affairs contracts</div>
+            <div class="news-meta">
+                Source: Ars Technica | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:44:00
+            </div>
+            <div>Staffer had no medical experience, and the results were predictably, spectacularly bad.</div>
+            <div><a href="https://arstechnica.com/tech-policy/2025/06/doge-used-flawed-ai-tool-to-munch-veterans-affairs-contracts/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Meta reportedly in talks to invest billions of dollars in Scale AI</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>Meta is discussing a multi-billion dollar investment in Scale AI, according to Bloomberg. In fact, the deal value could reportedly exceed $10 billion, making it the largest external AI investment for the Facebook parent company and one of the largest funding events ever for a private company.</div>
+            <div><a href="https://techcrunch.com/2025/06/08/meta-reportedly-in-talks-to-invest-billions-of-dollars-in-scale-ai/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">At WWDC 25, Apple should make amends with developers after AI shortfalls and lawsuits</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>Apple has an opportunity to deliver a WWDC that would encourage developers to invest more of their time in the ecosystem.</div>
+            <div><a href="https://techcrunch.com/2025/06/08/at-wwdc-25-apple-should-make-amends-with-developers-after-ai-shortfalls-and-lawsuits/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Lawyers could face ‘severe’ penalties for fake AI-generated citations, UK court warns</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">artificial intelligence, ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>he High Court of England and Wales says lawyers need to take stronger steps to prevent the misuse of artificial intelligence in their work. In a ruling tying together two recent cases, Judge Victoria Sharp wrote that generative AI tools like ChatGPT “are not capable of conducting reliable legal research.&#34;</div>
+            <div><a href="https://techcrunch.com/2025/06/07/lawyers-could-face-severe-penalties-for-fake-ai-generated-citations-uk-court-warns/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Week in Review: Why Anthropic cut access to Windsurf</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>Welcome back to Week in Review! Got lots for you today, including why Windsurf lost access to Claude, ChatGPT&amp;#8217;s new features, WWDC 2025, Elon Musk&amp;#8217;s fight with Donald Trump, and lots more. Have a great weekend! Duh: During an interview at TC Sessions: AI 2025, Anthropic&amp;#8217;s co-founder had a perfectly reasonable explanation for why the [&amp;#8230;]</div>
+            <div><a href="https://techcrunch.com/2025/06/07/week-in-review-why-anthropic-cut-access-to-windsurf/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Superblocks CEO: How to find a unicorn idea by studying AI system prompts</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>Brad Menezes, CEO of enterprise vibe coding startup Superblocks, is convinced that the next crop of billion-dollar startup ideas are hiding in almost plain sight: system prompts.</div>
+            <div><a href="https://techcrunch.com/2025/06/07/superblocks-ceo-how-to-find-a-unicorn-idea-by-studying-ai-system-prompts/" target="_blank">Read more</a></div>
+        </div>
+        
+        <div class="news-item">
+            <div class="news-title">Why investing in growth-stage AI startups is getting riskier and more complicated</div>
+            <div class="news-meta">
+                Source: TechCrunch | 
+                Keywords: <span class="keywords">ai</span> | 
+                Found: 2025-06-09 07:43:53
+            </div>
+            <div>AI startups are reaching growth stage much faster. That&#39;s exciting, but also risky, because investors might pour millions into a company only to watch it be unseated in a few months.</div>
+            <div><a href="https://techcrunch.com/2025/06/06/why-investing-in-growth-stage-ai-startups-is-getting-riskier-and-more-complicated/" target="_blank">Read more</a></div>
+        </div>
+        
+    </div>
+
+    <div class="section">
+        <h2>RSS Sources</h2>
+        <form method="POST" action="/add_feed">
+            <input type="text" name="name" placeholder="Feed Name" required>
+            <input type="url" name="url" placeholder="RSS URL" required>
+            <button type="submit" class="btn">Add Feed</button>
+        </form>
+        <table>
+            <tr><th>Name</th><th>URL</th><th>Status</th><th>Actions</th></tr>
+            
+            <tr>
+                <td>Ars Technica</td>
+                <td>https://feeds.arstechnica.com/arstechnica/index</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_feed/3" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_feed/3" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>Hacker News</td>
+                <td>https://hnrss.org/frontpage</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_feed/4" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_feed/4" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>TechCrunch</td>
+                <td>https://techcrunch.com/feed/</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_feed/1" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_feed/1" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>The Verge</td>
+                <td>https://www.theverge.com/rss/index.xml</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_feed/2" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_feed/2" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>VentureBeat</td>
+                <td>https://venturebeat.com/feed/</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_feed/5" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_feed/5" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Keywords</h2>
+        <form method="POST" action="/add_keyword">
+            <input type="text" name="keyword" placeholder="Keyword" required>
+            <button type="submit" class="btn">Add Keyword</button>
+        </form>
+        <table>
+            <tr><th>Keyword</th><th>Status</th><th>Actions</th></tr>
+            
+            <tr>
+                <td>AI</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/6" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/6" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>Python</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/3" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/3" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>artificial intelligence</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/2" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/2" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>digital</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/8" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/8" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>programming</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/4" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/4" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>software</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/7" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/7" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>tech</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/5" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/5" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+            <tr>
+                <td>technology</td>
+                <td>Active</td>
+                <td>
+                    <a href="/toggle_keyword/1" class="btn">
+                        Deactivate
+                    </a>
+                    <a href="/delete_keyword/1" class="btn btn-danger" 
+                       onclick="return confirm('Delete?')">Delete</a>
+                </td>
+            </tr>
+            
+        </table>
+    </div>
+</body>
+</html>
