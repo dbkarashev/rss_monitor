@@ -2,7 +2,7 @@
 
 Production-ready RSS feed monitoring service with automated keyword tracking, web management interface, and REST API endpoints.
 
-[**🔎 Live Demo**](https://dbkarashev.github.io/rss_monitor/) — preview the interface in your browser.
+[![Demo](https://img.shields.io/badge/🌐_Live-Demo-blue?style=for-the-badge)](https://dbkarashev.github.io/rss_monitor/)
 
 ## Overview
 
